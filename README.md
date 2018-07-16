@@ -21,3 +21,8 @@ mixbee-crypto SM2/3/4 library based on Golang
 
 ## SM4
 无线局域网标准的分组数据算法。对称加密，密钥长度和分组长度均为128位。
+
+
+
+# License
+Copyright (c) 2018 mixbee
