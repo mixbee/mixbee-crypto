@@ -1,193 +1,134 @@
+/*
+ * Package sm3 implements the Chinese SM3 Digest Algorithm,
+ * according to "go/src/crypto/sha256"
+ * author: weizhang <d5c5ceb0@gmail.com>
+ */
+
 package sm3
 
 import (
-	"encoding/binary"
 	"hash"
 )
 
-type SM3 struct {
-	digest      [8]uint32 // digest represents the partial evaluation of V
-	length      uint64    // length of the message
-	unhandleMsg []byte    // uint8  //
+// The size of a SM3 checksum in bytes.
+const Size = 32
+
+// The blocksize of SM3 in bytes.
+const BlockSize = 64
+
+const (
+	chunk = 64
+	init0 = 0x7380166F
+	init1 = 0x4914B2B9
+	init2 = 0x172442D7
+	init3 = 0xDA8A0600
+	init4 = 0xA96F30BC
+	init5 = 0x163138AA
+	init6 = 0xE38DEE4D
+	init7 = 0xB0FB0E4E
+)
+
+// digest represents the partial evaluation of a checksum.
+type digest struct {
+	h   [8]uint32
+	x   [chunk]byte
+	nx  int
+	len uint64
 }
 
-func (sm3 *SM3) ff0(x, y, z uint32) uint32 { return x ^ y ^ z }
-
-func (sm3 *SM3) ff1(x, y, z uint32) uint32 { return (x & y) | (x & z) | (y & z) }
-
-func (sm3 *SM3) gg0(x, y, z uint32) uint32 { return x ^ y ^ z }
-
-func (sm3 *SM3) gg1(x, y, z uint32) uint32 { return (x & y) | (^x & z) }
-
-func (sm3 *SM3) p0(x uint32) uint32 { return x ^ sm3.leftRotate(x, 9) ^ sm3.leftRotate(x, 17) }
-
-func (sm3 *SM3) p1(x uint32) uint32 { return x ^ sm3.leftRotate(x, 15) ^ sm3.leftRotate(x, 23) }
-
-func (sm3 *SM3) leftRotate(x uint32, i uint32) uint32 { return (x<<(i%32) | x>>(32-i%32)) }
-
-func (sm3 *SM3) pad() []byte {
-	msg := sm3.unhandleMsg
-	msg = append(msg, 0x80) // Append '1'
-	blockSize := 64         // Append until the resulting message length (in bits) is congruent to 448 (mod 512)
-	for len(msg)%blockSize != 56 {
-		msg = append(msg, 0x00)
-	}
-	// append message length
-	msg = append(msg, uint8(sm3.length>>56&0xff))
-	msg = append(msg, uint8(sm3.length>>48&0xff))
-	msg = append(msg, uint8(sm3.length>>40&0xff))
-	msg = append(msg, uint8(sm3.length>>32&0xff))
-	msg = append(msg, uint8(sm3.length>>24&0xff))
-	msg = append(msg, uint8(sm3.length>>16&0xff))
-	msg = append(msg, uint8(sm3.length>>8&0xff))
-	msg = append(msg, uint8(sm3.length>>0&0xff))
-
-	if len(msg)%64 != 0 {
-		panic("------SM3 Pad: error msgLen =")
-	}
-	return msg
+func (d *digest) Reset() {
+	d.h[0] = init0
+	d.h[1] = init1
+	d.h[2] = init2
+	d.h[3] = init3
+	d.h[4] = init4
+	d.h[5] = init5
+	d.h[6] = init6
+	d.h[7] = init7
+	d.nx = 0
+	d.len = 0
 }
 
-func (sm3 *SM3) update(msg []byte, nblocks int) {
-	var w [68]uint32
-	var w1 [64]uint32
-
-	a, b, c, d, e, f, g, h := sm3.digest[0], sm3.digest[1], sm3.digest[2], sm3.digest[3], sm3.digest[4], sm3.digest[5], sm3.digest[6], sm3.digest[7]
-	for len(msg) >= 64 {
-		for i := 0; i < 16; i++ {
-			w[i] = binary.BigEndian.Uint32(msg[4*i : 4*(i+1)])
-		}
-		for i := 16; i < 68; i++ {
-			w[i] = sm3.p1(w[i-16]^w[i-9]^sm3.leftRotate(w[i-3], 15)) ^ sm3.leftRotate(w[i-13], 7) ^ w[i-6]
-		}
-		for i := 0; i < 64; i++ {
-			w1[i] = w[i] ^ w[i+4]
-		}
-		A, B, C, D, E, F, G, H := a, b, c, d, e, f, g, h
-		for i := 0; i < 16; i++ {
-			SS1 := sm3.leftRotate(sm3.leftRotate(A, 12)+E+sm3.leftRotate(0x79cc4519, uint32(i)), 7)
-			SS2 := SS1 ^ sm3.leftRotate(A, 12)
-			TT1 := sm3.ff0(A, B, C) + D + SS2 + w1[i]
-			TT2 := sm3.gg0(E, F, G) + H + SS1 + w[i]
-			D = C
-			C = sm3.leftRotate(B, 9)
-			B = A
-			A = TT1
-			H = G
-			G = sm3.leftRotate(F, 19)
-			F = E
-			E = sm3.p0(TT2)
-		}
-		for i := 16; i < 64; i++ {
-			SS1 := sm3.leftRotate(sm3.leftRotate(A, 12)+E+sm3.leftRotate(0x7a879d8a, uint32(i)), 7)
-			SS2 := SS1 ^ sm3.leftRotate(A, 12)
-			TT1 := sm3.ff1(A, B, C) + D + SS2 + w1[i]
-			TT2 := sm3.gg1(E, F, G) + H + SS1 + w[i]
-			D = C
-			C = sm3.leftRotate(B, 9)
-			B = A
-			A = TT1
-			H = G
-			G = sm3.leftRotate(F, 19)
-			F = E
-			E = sm3.p0(TT2)
-		}
-		a ^= A
-		b ^= B
-		c ^= C
-		d ^= D
-		e ^= E
-		f ^= F
-		g ^= G
-		h ^= H
-		msg = msg[64:]
-	}
-	sm3.digest[0], sm3.digest[1], sm3.digest[2], sm3.digest[3], sm3.digest[4], sm3.digest[5], sm3.digest[6], sm3.digest[7] = a, b, c, d, e, f, g, h
-}
-
+// New returns a new hash.Hash computing the SM3 checksum.
 func New() hash.Hash {
-	var sm3 SM3
-
-	sm3.Reset()
-	return &sm3
+	d := new(digest)
+	d.Reset()
+	return d
 }
 
-// BlockSize, required by the hash.Hash interface.
-// BlockSize returns the hash's underlying block size.
-// The Write method must be able to accept any amount
-// of data, but it may operate more efficiently if all writes
-// are a multiple of the block size.
-func (sm3 *SM3) BlockSize() int { return 64 }
+func (d *digest) Size() int { return Size }
 
-// Size, required by the hash.Hash interface.
-// Size returns the number of bytes Sum will return.
-func (sm3 *SM3) Size() int { return 32 }
+func (d *digest) BlockSize() int { return BlockSize }
 
-// Reset clears the internal state by zeroing bytes in the state buffer.
-// This can be skipped for a newly-created hash state; the default zero-allocated state is correct.
-func (sm3 *SM3) Reset() {
-	// Reset digest
-	sm3.digest[0] = 0x7380166f
-	sm3.digest[1] = 0x4914b2b9
-	sm3.digest[2] = 0x172442d7
-	sm3.digest[3] = 0xda8a0600
-	sm3.digest[4] = 0xa96f30bc
-	sm3.digest[5] = 0x163138aa
-	sm3.digest[6] = 0xe38dee4d
-	sm3.digest[7] = 0xb0fb0e4e
-
-	sm3.length = 0 // Reset numberic states
-	sm3.unhandleMsg = []byte{}
-}
-
-// Write, required by the hash.Hash interface.
-// Write (via the embedded io.Writer interface) adds more data to the running hash.
-// It never returns an error.
-func (sm3 *SM3) Write(p []byte) (int, error) {
-	toWrite := len(p)
-	sm3.length += uint64(len(p) * 8)
-
-	msg := append(sm3.unhandleMsg, p...)
-	nblocks := len(msg) / sm3.BlockSize()
-	sm3.update(msg, nblocks)
-
-	// Update unhandleMsg
-	sm3.unhandleMsg = msg[nblocks*sm3.BlockSize():]
-
-	return toWrite, nil
-}
-
-// Sum, required by the hash.Hash interface.
-// Sum appends the current hash to b and returns the resulting slice.
-// It does not change the underlying hash state.
-func (sm3 *SM3) Sum(in []byte) []byte {
-	sm3.Write(in)
-	msg := sm3.pad()
-
-	// Finialize
-	sm3.update(msg, len(msg)/sm3.BlockSize())
-
-	// save hash to in
-	needed := sm3.Size()
-	if cap(in)-len(in) < needed {
-		newIn := make([]byte, len(in), len(in)+needed)
-		copy(newIn, in)
-		in = newIn
+func (d *digest) Write(p []byte) (nn int, err error) {
+	nn = len(p)
+	d.len += uint64(nn)
+	if d.nx > 0 {
+		n := copy(d.x[d.nx:], p)
+		d.nx += n
+		if d.nx == chunk {
+			block(d, d.x[:])
+			d.nx = 0
+		}
+		p = p[n:]
 	}
-	out := in[len(in) : len(in)+needed]
-
-	for i := 0; i < 8; i++ {
-		binary.BigEndian.PutUint32(out[i*4:], sm3.digest[i])
+	if len(p) >= chunk {
+		n := len(p) &^ (chunk - 1)
+		block(d, p[:n])
+		p = p[n:]
 	}
-	return out
-
+	if len(p) > 0 {
+		d.nx = copy(d.x[:], p)
+	}
+	return
 }
 
-func Sm3Sum(data []byte) []byte {
-	var sm3 SM3
-
-	sm3.Reset()
-	sm3.Write(data)
-	return sm3.Sum(nil)
+func (d0 *digest) Sum(in []byte) []byte {
+	// Make a copy of d0 so that caller can keep writing and summing.
+	d := *d0
+	hash := d.checkSum()
+	return append(in, hash[:]...)
 }
 
+func (d *digest) checkSum() [Size]byte {
+	len := d.len
+	// Padding. Add a 1 bit and 0 bits until 56 bytes mod 64.
+	var tmp [64]byte
+	tmp[0] = 0x80
+	if len%64 < 56 {
+		d.Write(tmp[0 : 56-len%64])
+	} else {
+		d.Write(tmp[0 : 64+56-len%64])
+	}
+
+	// Length in bits.
+	len <<= 3
+	for i := uint(0); i < 8; i++ {
+		tmp[i] = byte(len >> (56 - 8*i))
+	}
+	d.Write(tmp[0:8])
+
+	if d.nx != 0 {
+		panic("d.nx != 0")
+	}
+
+	h := d.h[:]
+
+	var digest [Size]byte
+	for i, s := range h {
+		digest[i*4] = byte(s >> 24)
+		digest[i*4+1] = byte(s >> 16)
+		digest[i*4+2] = byte(s >> 8)
+		digest[i*4+3] = byte(s)
+	}
+
+	return digest
+}
+
+// Sum returns the SM3 checksum of the data.
+func Sum(data []byte) [Size]byte {
+	var d digest
+	d.Reset()
+	d.Write(data)
+	return d.checkSum()
+}

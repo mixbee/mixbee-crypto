@@ -1,88 +1,148 @@
+/*
+ * Package sm4 implements the Chinese SM4 Digest Algorithm,
+ * according to "go/src/crypto/aes"
+ * author: weizhang <d5c5ceb0@gmail.com>
+ */
+
 package sm4
 
 import (
-	"fmt"
-	"log"
-	"reflect"
 	"testing"
 )
 
-func TestSM4(t *testing.T) {
-	key := []byte("1234567890abcdef")
-	fmt.Printf("key = %v\n", key)
-	data := []byte{0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10}
-	WriteKeyToPem("key.pem", key, nil)
-	key, err := ReadKeyFromPem("key.pem", nil)
-	fmt.Printf("key = %v\n", key)
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Printf("data = %x\n", data)
-	c, err := NewCipher(key)
-	if err != nil {
-		log.Fatal(err)
-	}
-	d0 := make([]byte, 16)
-	c.Encrypt(d0, data)
-	fmt.Printf("d0 = %x\n", d0)
-	d1 := make([]byte, 16)
-	c.Decrypt(d1, d0)
-	fmt.Printf("d1 = %x\n", d1)
-	if sa := testCompare(data, d1); sa != true {
-		fmt.Printf("Error data!")
-	}
+type CryptTest struct {
+	key  []byte
+	in   []byte
+	out  []byte
+	out2 []byte
 }
 
-func BenchmarkSM4(t *testing.B) {
-	t.ReportAllocs()
-	key := []byte("1234567890abcdef")
-	data := []byte{0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10}
-	WriteKeyToPem("key.pem", key, nil)
-	key, err := ReadKeyFromPem("key.pem", nil)
-	if err != nil {
-		log.Fatal(err)
-	}
-	c, err := NewCipher(key)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	for i := 0; i < t.N; i++ {
-		d0 := make([]byte, 16)
-		c.Encrypt(d0, data)
-		d1 := make([]byte, 16)
-		c.Decrypt(d1, d0)
-	}
+var encryptTests = []CryptTest{
+	{
+		// Appendix B.
+		[]byte{0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10},
+		[]byte{0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10},
+		[]byte{0x68, 0x1e, 0xdf, 0x34, 0xd2, 0x06, 0x96, 0x5e, 0x86, 0xb3, 0xe9, 0x4f, 0x53, 0x6e, 0x42, 0x46},
+		[]byte{0x59, 0x52, 0x98, 0xc7, 0xc6, 0xfd, 0x27, 0x1f, 0x04, 0x02, 0xf8, 0x04, 0xc3, 0x3d, 0x3f, 0x66},
+	},
 }
 
-func TestErrKeyLen(t *testing.T) {
-	fmt.Printf("\n--------------test key len------------------")
-	key := []byte("1234567890abcdefg")
-	_, err := NewCipher(key)
-	if err != nil {
-		fmt.Println("\nError key len !")
-	}
-	key = []byte("1234")
-	_, err = NewCipher(key)
-	if err != nil {
-		fmt.Println("Error key len !")
-	}
-	fmt.Println("------------------end----------------------")
-}
-
-func testCompare(key1, key2 []byte) bool {
-	if len(key1) != len(key2) {
-		return false
-	}
-	for i, v := range key1 {
-		if i == 1 {
-			fmt.Println("type of v", reflect.TypeOf(v))
+func TestCipherEncrypt(t *testing.T) {
+	for i, tt := range encryptTests {
+		c, err := NewCipher(tt.key)
+		if err != nil {
+			t.Errorf("NewCipher(%d bytes) = %s", len(tt.key), err)
+			continue
 		}
-		a := key2[i]
-		if a != v {
-			return false
+		out := make([]byte, len(tt.in))
+		c.Encrypt(out, tt.in)
+		for j, v := range out {
+			if v != tt.out[j] {
+				t.Errorf("Cipher.Encrypt %d: out[%d] = %#x, want %#x", i, j, v, tt.out[j])
+				break
+			}
+		}
+
+		out2 := make([]byte, len(tt.in))
+		copy(out, tt.in)
+		for i := 0; i < 1000000/2; i++ {
+			c.Encrypt(out2, out)
+			c.Encrypt(out, out2)
+		}
+		for j, v := range out {
+			if v != tt.out2[j] {
+				t.Errorf("Cipher.Encrypt %d: out[%d] = %#x, want %#x", i, j, v, tt.out[j])
+				break
+			}
 		}
 	}
-	return true
 }
 
+func TestCipherDecrypt(t *testing.T) {
+	for i, tt := range encryptTests {
+		c, err := NewCipher(tt.key)
+		if err != nil {
+			t.Errorf("NewCipher(%d bytes) = %s", len(tt.key), err)
+			continue
+		}
+		plain := make([]byte, len(tt.in))
+		c.Decrypt(plain, tt.out)
+		for j, v := range plain {
+			if v != tt.in[j] {
+				t.Errorf("decryptBlock %d: plain[%d] = %#x, want %#x", i, j, v, tt.in[j])
+				break
+			}
+		}
+
+		plain2 := make([]byte, len(tt.in))
+
+		copy(plain, tt.out2)
+		for i := 0; i < 1000000/2; i++ {
+			c.Decrypt(plain2, plain)
+			c.Decrypt(plain, plain2)
+		}
+		for j, v := range plain {
+			if v != tt.in[j] {
+				t.Errorf("decryptBlock %d: plain[%d] = %#x, want %#x", i, j, v, tt.in[j])
+				break
+			}
+		}
+	}
+}
+
+/*
+// Test short input/output.
+// Assembly used to not notice.
+func TestShortBlocks(t *testing.T) {
+	bytes := func(n int) []byte { return make([]byte, n) }
+
+	c, _ := NewCipher(bytes(16))
+
+	mustPanic(t, "sm4: input not full block", func() { c.Encrypt(bytes(1), bytes(1)) })
+	mustPanic(t, "sm4: input not full block", func() { c.Decrypt(bytes(1), bytes(1)) })
+	mustPanic(t, "sm4: input not full block", func() { c.Encrypt(bytes(100), bytes(1)) })
+	mustPanic(t, "sm4: input not full block", func() { c.Decrypt(bytes(100), bytes(1)) })
+	mustPanic(t, "sm4: output not full block", func() { c.Encrypt(bytes(1), bytes(100)) })
+	mustPanic(t, "sm4: output not full block", func() { c.Decrypt(bytes(1), bytes(100)) })
+}
+
+func mustPanic(t *testing.T, msg string, f func()) {
+	defer func() {
+		err := recover()
+		if err == nil {
+			t.Errorf("function did not panic, wanted %q", msg)
+		} else if err != msg {
+			t.Errorf("got panic %v, wanted %q", err, msg)
+		}
+	}()
+	f()
+}
+*/
+
+func BenchmarkEncrypt(b *testing.B) {
+	tt := encryptTests[0]
+	c, err := NewCipher(tt.key)
+	if err != nil {
+		b.Fatal("NewCipher:", err)
+	}
+	out := make([]byte, len(tt.in))
+	b.SetBytes(int64(len(out)))
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		c.Encrypt(out, tt.in)
+	}
+}
+
+func BenchmarkDecrypt(b *testing.B) {
+	tt := encryptTests[0]
+	c, err := NewCipher(tt.key)
+	if err != nil {
+		b.Fatal("NewCipher:", err)
+	}
+	out := make([]byte, len(tt.out))
+	b.SetBytes(int64(len(out)))
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		c.Decrypt(out, tt.out)
+	}
+}
