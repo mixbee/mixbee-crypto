@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"testing"
+	"log"
 )
 
 type sm3Test struct {
@@ -56,6 +57,7 @@ func TestGolden(t *testing.T) {
 	for i := 0; i < len(golden); i++ {
 		g := golden[i]
 		s := fmt.Sprintf("%x", Sum([]byte(g.in)))
+		log.Println("s=",s)
 		if s != g.out {
 			t.Fatalf("Sum function: sm3(%s) = %s want %s", g.in, s, g.out)
 		}
