@@ -24,6 +24,42 @@ SM3杂凑算法是我国自主设计的密码杂凑算法，适用于商用密�
 无线局域网标准的分组数据算法。对称加密，密钥长度和分组长度均为128位。
 
 
+# 使用
+具体用法可以参考项目中的 `example`文件中的代码
+
+## `keyPair`秘钥对的使用
+支持的算法：
+* PK_ECDSA 
+实现了 P224, P256, P384, P521
+
+* PK_SM2  ()
+SM2P256V1
+
+* PK_EDDSA
+ED25519
+
+
+```
+	pri, pub, _ := keypair.GenerateKeyPair(pkAlgorithm, params)
+
+```
+
+## 数据签名
+
+```
+// 数据签名
+sig, err := signature.Sign(signature.SHA256withECDSA, private, msg, nil)
+
+// 签名校验
+ok := signature.Verify(public, msg, sig)
+
+// 多重签名
+VerifyMultiSignature(data , keys , m ,sigs)
+
+```
+
+多重签名的验签参考 `example/signature/signatureExample.go` 文件中的 `testVerifyMultiSignature`函数。
+
 
 # License
 Copyright (c) 2018 mixbee
