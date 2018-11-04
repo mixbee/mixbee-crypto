@@ -14,11 +14,10 @@ GoOnchain.iml
 *.orig
 *.rej
 vendor/*
-!vendor/github.com/ontio/ontology-crypto/*
+!vendor/github.com/mixio/mixbee-crypto/*
 Chain/*
 /config/*
 nodectl
-ontology
 wallet.dat
 cscope*
 *.exe

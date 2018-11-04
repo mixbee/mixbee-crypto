@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"sort"
 
-	"github.com/ontio/ontology-crypto/ec"
+	"github.com/mixbee/mixbee-crypto/ec"
 
 	"golang.org/x/crypto/ed25519"
 )

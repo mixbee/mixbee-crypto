@@ -8,8 +8,8 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/ontio/ontology-crypto/ec"
-	"github.com/ontio/ontology-crypto/sm2"
+	"github.com/mixbee/mixbee-crypto/ec"
+	"github.com/mixbee/mixbee-crypto/sm2"
 )
 
 func TestKeyPairGeneration(t *testing.T) {

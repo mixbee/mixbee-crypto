@@ -20,7 +20,7 @@ import (
 	"reflect"
 
 	base58 "github.com/itchyny/base58-go"
-	"github.com/ontio/ontology-crypto/ec"
+	"github.com/mixbee/mixbee-crypto/ec"
 
 	"golang.org/x/crypto/ed25519"
 )

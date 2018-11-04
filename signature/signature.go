@@ -11,8 +11,8 @@ import (
 
 	"golang.org/x/crypto/ed25519"
 
-	"github.com/ontio/ontology-crypto/ec"
-	"github.com/ontio/ontology-crypto/sm2"
+	"github.com/mixbee/mixbee-crypto/ec"
+	"github.com/mixbee/mixbee-crypto/sm2"
 )
 
 type Signature struct {

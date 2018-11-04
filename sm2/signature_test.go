@@ -8,7 +8,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/ontio/ontology-crypto/sm3"
+	"github.com/mixbee/mixbee-crypto/sm3"
 )
 
 var d_hex = "5be7e4b09a761bf5562ddf8e6a33184e00d0c09c942c6adbad1141d5d08431f0"

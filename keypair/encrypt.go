@@ -7,7 +7,7 @@ import (
 	"crypto/sha256"
 	"errors"
 
-	"github.com/ontio/ontology-crypto/ec"
+	"github.com/mixbee/mixbee-crypto/ec"
 
 	"golang.org/x/crypto/ed25519"
 	"golang.org/x/crypto/scrypt"

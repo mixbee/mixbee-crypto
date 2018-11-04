@@ -5,7 +5,7 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/ontio/ontology-crypto/sm2"
+	"github.com/mixbee/mixbee-crypto/sm2"
 )
 
 const (

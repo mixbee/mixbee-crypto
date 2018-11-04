@@ -3,7 +3,7 @@ package vrf
 import (
 	"testing"
 
-	"github.com/ontio/ontology-crypto/keypair"
+	"github.com/mixbee/mixbee-crypto/keypair"
 )
 
 func testVrf(t *testing.T, kt keypair.KeyType, curve byte) {

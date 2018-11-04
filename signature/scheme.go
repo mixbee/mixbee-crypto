@@ -7,7 +7,7 @@ import (
 	"hash"
 	"strings"
 
-	"github.com/ontio/ontology-crypto/sm3"
+	"github.com/mixbee/mixbee-crypto/sm3"
 
 	// the following blank imports ensures these packages are linked
 	_ "crypto/sha256"

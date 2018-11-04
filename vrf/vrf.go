@@ -9,10 +9,10 @@ import (
 	"errors"
 	"hash"
 
-	"github.com/ontio/ontology-crypto/ec"
-	"github.com/ontio/ontology-crypto/keypair"
-	"github.com/ontio/ontology-crypto/sm3"
-	"github.com/ontio/ontology/common/log"
+	"github.com/mixbee/mixbee-crypto/ec"
+	"github.com/mixbee/mixbee-crypto/keypair"
+	"github.com/mixbee/mixbee-crypto/sm3"
+	"github.com/mixbee/mixbee/common/log"
 )
 
 var (

@@ -26,7 +26,7 @@ import (
 	"hash"
 	"math/big"
 
-	"github.com/ontio/ontology-crypto/ec"
+	"github.com/mixbee/mixbee-crypto/ec"
 )
 
 var (
